@@ -1,0 +1,38 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Program - Debug",
+      "program": "${workspaceFolder}/src/index.ts",
+      "env": {"LOG_LEVEL": "debug", "PORT":"8090", "NODE_ENV": "DEV"},
+      "preLaunchTask": "npm: build",
+      "sourceMaps": true,
+      "smartStep": true,
+      "internalConsoleOptions": "openOnSessionStart",
+      "console": "integratedTerminal",
+      "outFiles": [
+        "${workspaceFolder}/build/**/*.js"
+      ]
+    },
+    {
+      "name": "Testing - Debug",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/jest/bin/jest.js",
+      "stopOnEntry": false,
+      "sourceMaps": true,
+      "args": [
+        "-i",
+        "--verbose"
+      ], //you can specify paths to specific tests here
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": null,
+      "envFile": "${workspaceFolder}/.env"
+    },
+  ]
+}

@@ -16,6 +16,12 @@ async function run() {
 
   const dogsModel = mongito.model<Dog>('dogs', dogSchema)
 
+  const res = await dogsModel.advancedFind({
+    enhanceSearch: (cursor) => cursor.sort({ size: 'asc', name: 'desc' }).limit(2),
+  })
+
+  console.log({ res })
+
   /* await dogsModel.add({
     name: 'Toby',
     size: 'big',
@@ -28,6 +34,7 @@ async function run() {
     createdAt: new Date(),
   })
 
+
   await dogsModel.add({
     name: 'Sky',
     size: 'small',
@@ -37,15 +44,21 @@ async function run() {
   // const count = await dogsModel.delete()
   // console.log({ count })
 
-  const dogs = await dogsModel.find()
-  console.log({ dogs })
-  console.log('=====')
+  // const dogs = await dogsModel.find()
+  // console.log({ dogs })
+  // console.log('=====')
 
-  const res = await dogsModel.updateMany({}, { size: 'small' })
+  // const res = await dogsModel.updateMany({}, { size: 'small' })
 
-  console.log('=====')
-  const dogsV2 = await dogsModel.find()
-  console.log({ dogsV2 })
+  // console.log('=====')
+  // const dogsV2 = await dogsModel.find()
+  // console.log({ dogsV2 })
+
+  // const old = await dogsModel.updateById('63ddbd1f9daf8ec18f183c3c', { values: { name: 'Docky', size: 'small' } })
+  // console.log({ old })
+
+  // const act = await dogsModel.findById('63ddbd1f9daf8ec18f183c3c')
+  // console.log({ act })
 
   // const d = await dogsModel.findById('63dd178a6a9722aa15f3364d')
   // console.log({ d })

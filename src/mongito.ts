@@ -9,7 +9,11 @@ import {
   FindOneAndDeleteOptions,
   FindOneAndUpdateOptions,
   UpdateResult,
-  // Filter,
+  Filter,
+  UpdateFilter,
+  FindCursor,
+  InsertOneOptions,
+  BulkWriteOptions,
 } from 'mongodb'
 
 export interface ModelOptions {
@@ -18,37 +22,49 @@ export interface ModelOptions {
 
 export type Doc<T> = T & { _id: ObjectId; __v?: number }
 export interface Model<P extends Document> {
-  // count
-  // insertMany
-  // replace
+  count(filters?: Filter<P>, options?: FindOptions<P>): Promise<number>
 
-  add(payload: P): Promise<Doc<P>>
+  insert(payload: P, options?: InsertOneOptions): Promise<Doc<P>>
+  insertMany(list: P[], options?: BulkWriteOptions): Promise<number>
 
-  find(filters?: Partial<{ [key in keyof P]: P[key] }>, options?: FindOptions<P>): Promise<Doc<P>[]>
-  findOneBy(filters?: Partial<{ [key in keyof P]: P[key] }>, options?: FindOptions<P>): Promise<Doc<P> | null>
+  advancedFind(
+    config: {
+      enhanceSearch: (cursor: FindCursor<P>) => FindCursor<P>
+      filters?: Filter<P>
+    },
+    options?: FindOptions<P>,
+  ): Promise<Doc<P>[]>
+  find(filters?: Filter<P>, options?: FindOptions<P>): Promise<Doc<P>[]>
+  findOneBy(filters?: Filter<P>, options?: FindOptions<P>): Promise<Doc<P> | null>
   findById(id: string | ObjectId, options?: FindOptions<P>): Promise<Doc<P> | null>
 
-  updateById(
+  updateById<M extends 'basic' | 'advanced' = 'basic'>(
     id: string | ObjectId,
-    fields: Partial<{ [key in keyof P]: P[key] }>,
+    updateProps: {
+      mode?: M
+      values: M extends 'advanced' ? UpdateFilter<P> : Partial<{ [key in keyof P]: P[key] }>
+    },
     options?: FindOneAndUpdateOptions,
   ): Promise<Doc<P> | null>
-  updateOneBy(
-    filters: Partial<{ [key in keyof P]: P[key] }>,
-    fields: Partial<{ [key in keyof P]: P[key] }>,
+  updateOneBy<M extends 'basic' | 'advanced' = 'basic'>(
+    updateProps: {
+      mode?: M
+      values: M extends 'advanced' ? UpdateFilter<P> : Partial<{ [key in keyof P]: P[key] }>
+    },
+    filters: Filter<P>,
     options?: FindOneAndUpdateOptions,
   ): Promise<Doc<P> | null>
-  updateMany(
-    filters?: Partial<{ [key in keyof P]: P[key] }>,
-    fields?: Partial<{ [key in keyof P]: P[key] }>,
+  updateMany<M extends 'basic' | 'advanced' = 'basic'>(
+    updateProps: {
+      mode?: M
+      values: M extends 'advanced' ? UpdateFilter<P> : Partial<{ [key in keyof P]: P[key] }>
+    },
+    filters?: Filter<P>,
     options?: FindOneAndUpdateOptions,
   ): Promise<UpdateResult>
 
-  delete(filters?: Partial<{ [key in keyof P]: P[key] }>, options?: DeleteOptions): Promise<number>
-  deleteOneBy(
-    filters?: Partial<{ [key in keyof P]: P[key] }>,
-    options?: FindOneAndDeleteOptions,
-  ): Promise<Doc<P> | null>
+  delete(filters?: Filter<P>, options?: DeleteOptions): Promise<number>
+  deleteOneBy(filters: Filter<P>, options?: FindOneAndDeleteOptions): Promise<Doc<P> | null>
   deleteById(id: string | ObjectId, options?: FindOneAndDeleteOptions): Promise<Doc<P> | null>
 }
 
@@ -67,7 +83,7 @@ export class Mongito {
 
   model<P extends Document>(collectionName: string, validationSchema: Schema<P>, options?: ModelOptions): Model<P> {
     // TODO: custom errors wrapper
-    // TODO: what about limit, filter, project, aggregate, sort
+
     const collection = this.db.collection(collectionName)
     const withVersion = options?.versionKey ?? true
 
@@ -76,24 +92,39 @@ export class Mongito {
     )
 
     return {
-      add: async (payload) => {
+      count: (filters, opts) => collection.countDocuments(filters, opts),
+
+      insertMany: async (list, opts) => {
+        const res = await collection.insertMany(list, opts)
+        if (res.acknowledged) return res.insertedCount
+        throw new Error('error inserting many items')
+      },
+
+      insert: async (payload, opts) => {
         validationSchema.parse(payload)
 
-        const { acknowledged, insertedId } = await collection.insertOne({
-          ...payload,
-          ...(withVersion ? { __v: 0 } : {}),
-        })
+        const { acknowledged, insertedId } = await collection.insertOne(
+          { ...payload, ...(withVersion ? { __v: 0 } : {}) },
+          opts,
+        )
         if (acknowledged) return { _id: insertedId, ...payload, ...(withVersion ? { __v: 0 } : {}) }
         throw new Error('Failed to insert document')
       },
 
+      advancedFind: async ({ enhanceSearch, filters }, opts) => {
+        const cursor = collection.find((filters ?? {}) as Filter<Document>, opts)
+        const founds = await enhanceSearch(cursor as any).toArray()
+
+        return founds.map((doc) => docSchema.parse(doc))
+      },
+
       find: async (filters, opts) => {
-        const founds = await collection.find(filters ?? {}, opts).toArray()
+        const founds = await collection.find((filters ?? {}) as Filter<Document>, opts).toArray()
         return founds.map((doc) => docSchema.parse(doc))
       },
 
       findOneBy: async (filters, opts) => {
-        const doc = await collection.findOne(filters ?? {}, opts)
+        const doc = await collection.findOne(filters as Filter<Document>, opts)
         return !doc ? null : docSchema.parse(doc)
       },
 
@@ -102,30 +133,28 @@ export class Mongito {
         return !doc ? null : docSchema.parse(doc)
       },
 
-      updateById: async (id, values, opts) => {
-        const res = await collection.findOneAndUpdate(
-          { _id: typeof id == 'string' ? new ObjectId(id) : id },
-          { $set: { ...values }, ...(withVersion ? { $inc: { __v: 1 } } : {}) },
-          opts,
-        )
+      updateById: async (id, { mode = 'basic', values }, opts) => {
+        const _id = typeof id == 'string' ? new ObjectId(id) : id
+        const updateValues = (mode == 'advanced' ? { ...values } : { $set: { ...values } }) as UpdateFilter<Document>
+        if (withVersion) updateValues.$inc = { __v: 1 }
+
+        const res = await collection.findOneAndUpdate({ _id }, updateValues, opts)
         return res.value ? docSchema.parse(res.value) : null
       },
 
-      updateOneBy: async (filters, values, opts) => {
-        const res = await collection.findOneAndUpdate(
-          filters ?? {},
-          { $set: { ...values }, ...(withVersion ? { $inc: { __v: 1 } } : {}) },
-          opts,
-        )
+      updateOneBy: async ({ mode = 'basic', values }, filters, opts) => {
+        const updateValues = (mode == 'advanced' ? { ...values } : { $set: { ...values } }) as UpdateFilter<Document>
+        if (withVersion) updateValues.$inc = { __v: 1 }
+
+        const res = await collection.findOneAndUpdate(filters as Filter<Document>, updateValues, opts)
         return res.value ? docSchema.parse(res.value) : null
       },
 
-      updateMany: async (filters, values, opts) => {
-        const res = await collection.updateMany(
-          filters ?? {},
-          { $set: { ...values }, ...(withVersion ? { $inc: { __v: 1 } } : {}) },
-          opts,
-        )
+      updateMany: async ({ mode = 'basic', values }, filters, opts) => {
+        const updateValues = (mode == 'advanced' ? { ...values } : { $set: { ...values } }) as UpdateFilter<Document>
+        if (withVersion) updateValues.$inc = { __v: 1 }
+
+        const res = await collection.updateMany((filters ?? {}) as Filter<Document>, updateValues, opts)
         if (res.acknowledged) return res
         throw new Error('failed to update docs')
       },
@@ -136,16 +165,20 @@ export class Mongito {
       },
 
       deleteOneBy: async (filters, opts) => {
-        const res = await collection.findOneAndDelete(filters ?? {}, opts)
+        const res = await collection.findOneAndDelete(filters as Filter<Document>, opts)
         return res.value ? docSchema.parse(res.value) : null
       },
 
       delete: async (filters, opts) => {
-        const res = await collection.deleteMany(filters ?? {}, opts)
+        const res = await collection.deleteMany((filters ?? {}) as Filter<Document>, opts)
         if (res.acknowledged) return res.deletedCount
-        throw new Error('deletion ack failed') // TODO: custom error
+        throw new Error('deletion ack failed')
       },
     }
+  }
+
+  getDb(): Db {
+    return this.db
   }
 
   disconnect(): Promise<void> {

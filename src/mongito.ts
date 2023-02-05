@@ -1,74 +1,24 @@
 import { z, Schema } from 'zod'
-import {
-  Db,
-  MongoClient,
-  ObjectId,
-  Document,
-  FindOptions,
-  DeleteOptions,
-  FindOneAndDeleteOptions,
-  FindOneAndUpdateOptions,
-  UpdateResult,
-  Filter,
-  UpdateFilter,
-  FindCursor,
-  InsertOneOptions,
-  BulkWriteOptions,
-} from 'mongodb'
+import { Db, MongoClient, ObjectId, Document, Filter, UpdateFilter } from 'mongodb'
+import { Doc, Model } from './model'
 
 export interface ModelOptions {
   versionKey?: boolean
 }
 
-export type Doc<T> = T & { _id: ObjectId; __v?: number }
-export interface Model<P extends Document> {
-  count(filters?: Filter<P>, options?: FindOptions<P>): Promise<number>
+type DbOperations = 'find' | 'update' | 'delete' | 'insert'
 
-  insert(payload: P, options?: InsertOneOptions): Promise<Doc<P>>
-  insertMany(list: P[], options?: BulkWriteOptions): Promise<number>
-
-  advancedFind(
-    config: {
-      enhanceSearch: (cursor: FindCursor<P>) => FindCursor<P>
-      filters?: Filter<P>
-    },
-    options?: FindOptions<P>,
-  ): Promise<Doc<P>[]>
-  find(filters?: Filter<P>, options?: FindOptions<P>): Promise<Doc<P>[]>
-  findOneBy(filters?: Filter<P>, options?: FindOptions<P>): Promise<Doc<P> | null>
-  findById(id: string | ObjectId, options?: FindOptions<P>): Promise<Doc<P> | null>
-
-  updateById<M extends 'basic' | 'advanced' = 'basic'>(
-    id: string | ObjectId,
-    updateProps: {
-      mode?: M
-      values: M extends 'advanced' ? UpdateFilter<P> : Partial<{ [key in keyof P]: P[key] }>
-    },
-    options?: FindOneAndUpdateOptions,
-  ): Promise<Doc<P> | null>
-  updateOneBy<M extends 'basic' | 'advanced' = 'basic'>(
-    updateProps: {
-      mode?: M
-      values: M extends 'advanced' ? UpdateFilter<P> : Partial<{ [key in keyof P]: P[key] }>
-    },
-    filters: Filter<P>,
-    options?: FindOneAndUpdateOptions,
-  ): Promise<Doc<P> | null>
-  updateMany<M extends 'basic' | 'advanced' = 'basic'>(
-    updateProps: {
-      mode?: M
-      values: M extends 'advanced' ? UpdateFilter<P> : Partial<{ [key in keyof P]: P[key] }>
-    },
-    filters?: Filter<P>,
-    options?: FindOneAndUpdateOptions,
-  ): Promise<UpdateResult>
-
-  delete(filters?: Filter<P>, options?: DeleteOptions): Promise<number>
-  deleteOneBy(filters: Filter<P>, options?: FindOneAndDeleteOptions): Promise<Doc<P> | null>
-  deleteById(id: string | ObjectId, options?: FindOneAndDeleteOptions): Promise<Doc<P> | null>
+class MonguitoError extends Error {
+  constructor(public operation: DbOperations, public nativeError?: Error) {
+    super(
+      `Failed at running operation: ${operation}. ${
+        nativeError ? `with error: ${nativeError.name}: ${nativeError.message}` : ''
+      }`,
+    )
+  }
 }
 
-export class Mongito {
+export class Monguito {
   private client: MongoClient
   private db: Db
 
@@ -82,7 +32,13 @@ export class Mongito {
   }
 
   model<P extends Document>(collectionName: string, validationSchema: Schema<P>, options?: ModelOptions): Model<P> {
-    // TODO: custom errors wrapper
+    const mapError = <R>(operation: DbOperations, cb: () => R): R => {
+      try {
+        return cb()
+      } catch (error) {
+        throw new MonguitoError(operation, error instanceof Error ? error : new Error(`${error}`))
+      }
+    }
 
     const collection = this.db.collection(collectionName)
     const withVersion = options?.versionKey ?? true
@@ -92,88 +48,101 @@ export class Mongito {
     )
 
     return {
-      count: (filters, opts) => collection.countDocuments(filters, opts),
+      count: (filters, opts) => mapError('find', () => collection.countDocuments(filters, opts)),
 
-      insertMany: async (list, opts) => {
-        const res = await collection.insertMany(list, opts)
-        if (res.acknowledged) return res.insertedCount
-        throw new Error('error inserting many items')
-      },
+      insertMany: (list, opts) =>
+        mapError('insert', async () => {
+          const res = await collection.insertMany(list, opts)
+          if (res.acknowledged) return res.insertedCount
+          throw new Error(`Insertion of ${list.length} items was not aknowledged`)
+        }),
 
-      insert: async (payload, opts) => {
-        validationSchema.parse(payload)
+      insert: (payload, opts) =>
+        mapError('insert', async () => {
+          validationSchema.parse(payload)
 
-        const { acknowledged, insertedId } = await collection.insertOne(
-          { ...payload, ...(withVersion ? { __v: 0 } : {}) },
-          opts,
-        )
-        if (acknowledged) return { _id: insertedId, ...payload, ...(withVersion ? { __v: 0 } : {}) }
-        throw new Error('Failed to insert document')
-      },
+          const { acknowledged, insertedId } = await collection.insertOne(
+            { ...payload, ...(withVersion ? { __v: 0 } : {}) },
+            opts,
+          )
+          if (acknowledged) return { _id: insertedId, ...payload, ...(withVersion ? { __v: 0 } : {}) }
+          throw new Error(`Insertion of document was not aknowledged`)
+        }),
 
-      advancedFind: async ({ enhanceSearch, filters }, opts) => {
-        const cursor = collection.find((filters ?? {}) as Filter<Document>, opts)
-        const founds = await enhanceSearch(cursor as any).toArray()
+      advancedFind: ({ enhanceSearch, filters }, outputSchema, opts) =>
+        mapError('find', async () => {
+          const cursor = collection.find((filters ?? {}) as Filter<Document>, opts)
+          const founds = await enhanceSearch(cursor as any).toArray()
 
-        return founds.map((doc) => docSchema.parse(doc))
-      },
+          if (outputSchema) return founds.map((d) => outputSchema.parse(d)) as any
+          return founds.map((doc) => docSchema.parse(doc))
+        }),
 
-      find: async (filters, opts) => {
-        const founds = await collection.find((filters ?? {}) as Filter<Document>, opts).toArray()
-        return founds.map((doc) => docSchema.parse(doc))
-      },
+      find: (filters, opts) =>
+        mapError('find', async () => {
+          const founds = await collection.find((filters ?? {}) as Filter<Document>, opts).toArray()
+          return founds.map((doc) => docSchema.parse(doc))
+        }),
 
-      findOneBy: async (filters, opts) => {
-        const doc = await collection.findOne(filters as Filter<Document>, opts)
-        return !doc ? null : docSchema.parse(doc)
-      },
+      findOneBy: (filters, opts) =>
+        mapError('find', async () => {
+          const doc = await collection.findOne(filters as Filter<Document>, opts)
+          return !doc ? null : docSchema.parse(doc)
+        }),
 
-      findById: async (id, opts) => {
-        const doc = await collection.findOne({ _id: typeof id == 'string' ? new ObjectId(id) : id }, opts)
-        return !doc ? null : docSchema.parse(doc)
-      },
+      findById: (id, opts) =>
+        mapError('find', async () => {
+          const doc = await collection.findOne({ _id: typeof id == 'string' ? new ObjectId(id) : id }, opts)
+          return !doc ? null : docSchema.parse(doc)
+        }),
 
-      updateById: async (id, { mode = 'basic', values }, opts) => {
-        const _id = typeof id == 'string' ? new ObjectId(id) : id
-        const updateValues = (mode == 'advanced' ? { ...values } : { $set: { ...values } }) as UpdateFilter<Document>
-        if (withVersion) updateValues.$inc = { __v: 1 }
+      updateById: (id, { mode = 'basic', values }, opts) =>
+        mapError('update', async () => {
+          const _id = typeof id == 'string' ? new ObjectId(id) : id
+          const updateValues = (mode == 'advanced' ? { ...values } : { $set: { ...values } }) as UpdateFilter<Document>
+          if (withVersion) updateValues.$inc = { __v: 1 }
 
-        const res = await collection.findOneAndUpdate({ _id }, updateValues, opts)
-        return res.value ? docSchema.parse(res.value) : null
-      },
+          const res = await collection.findOneAndUpdate({ _id }, updateValues, opts)
+          return res.value ? docSchema.parse(res.value) : null
+        }),
 
-      updateOneBy: async ({ mode = 'basic', values }, filters, opts) => {
-        const updateValues = (mode == 'advanced' ? { ...values } : { $set: { ...values } }) as UpdateFilter<Document>
-        if (withVersion) updateValues.$inc = { __v: 1 }
+      updateOneBy: ({ mode = 'basic', values }, filters, opts) =>
+        mapError('update', async () => {
+          const updateValues = (mode == 'advanced' ? { ...values } : { $set: { ...values } }) as UpdateFilter<Document>
+          if (withVersion) updateValues.$inc = { __v: 1 }
 
-        const res = await collection.findOneAndUpdate(filters as Filter<Document>, updateValues, opts)
-        return res.value ? docSchema.parse(res.value) : null
-      },
+          const res = await collection.findOneAndUpdate(filters as Filter<Document>, updateValues, opts)
+          return res.value ? docSchema.parse(res.value) : null
+        }),
 
-      updateMany: async ({ mode = 'basic', values }, filters, opts) => {
-        const updateValues = (mode == 'advanced' ? { ...values } : { $set: { ...values } }) as UpdateFilter<Document>
-        if (withVersion) updateValues.$inc = { __v: 1 }
+      updateMany: ({ mode = 'basic', values }, filters, opts) =>
+        mapError('update', async () => {
+          const updateValues = (mode == 'advanced' ? { ...values } : { $set: { ...values } }) as UpdateFilter<Document>
+          if (withVersion) updateValues.$inc = { __v: 1 }
 
-        const res = await collection.updateMany((filters ?? {}) as Filter<Document>, updateValues, opts)
-        if (res.acknowledged) return res
-        throw new Error('failed to update docs')
-      },
+          const res = await collection.updateMany((filters ?? {}) as Filter<Document>, updateValues, opts)
+          if (res.acknowledged) return res
+          throw new Error('Update of documents was not aknowledged')
+        }),
 
-      deleteById: async (id) => {
-        const res = await collection.findOneAndDelete({ _id: typeof id == 'string' ? new ObjectId(id) : id })
-        return res.value ? docSchema.parse(res.value) : null
-      },
+      deleteById: (id) =>
+        mapError('delete', async () => {
+          const res = await collection.findOneAndDelete({ _id: typeof id == 'string' ? new ObjectId(id) : id })
+          return res.value ? docSchema.parse(res.value) : null
+        }),
 
-      deleteOneBy: async (filters, opts) => {
-        const res = await collection.findOneAndDelete(filters as Filter<Document>, opts)
-        return res.value ? docSchema.parse(res.value) : null
-      },
+      deleteOneBy: (filters, opts) =>
+        mapError('delete', async () => {
+          const res = await collection.findOneAndDelete(filters as Filter<Document>, opts)
+          return res.value ? docSchema.parse(res.value) : null
+        }),
 
-      delete: async (filters, opts) => {
-        const res = await collection.deleteMany((filters ?? {}) as Filter<Document>, opts)
-        if (res.acknowledged) return res.deletedCount
-        throw new Error('deletion ack failed')
-      },
+      delete: (filters, opts) =>
+        mapError('delete', async () => {
+          const res = await collection.deleteMany((filters ?? {}) as Filter<Document>, opts)
+          if (res.acknowledged) return res.deletedCount
+          throw new Error('Deletion of documents was not aknowledged')
+        }),
     }
   }
 

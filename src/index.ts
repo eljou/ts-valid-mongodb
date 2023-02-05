@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Mongito } from './mongito'
+import { Monguito } from './mongito'
 
 const dogSchema = z.object({
   name: z.string(),
@@ -11,14 +11,17 @@ type Dog = z.infer<typeof dogSchema>
 console.log('app')
 async function run() {
   console.log('connected')
-  const mongito = new Mongito('mongodb://127.0.0.1:27017', 'test')
+  const mongito = new Monguito('mongodb://127.0.0.1:27017', 'test')
   await mongito.connect()
 
   const dogsModel = mongito.model<Dog>('dogs', dogSchema)
 
-  const res = await dogsModel.advancedFind({
-    enhanceSearch: (cursor) => cursor.sort({ size: 'asc', name: 'desc' }).limit(2),
-  })
+  const res = await dogsModel.advancedFind<{ name: string }>(
+    {
+      enhanceSearch: (cursor) => cursor.sort({ size: 'asc' }).limit(2).project({ name: 1 }),
+    },
+    z.object({ name: z.string() }),
+  )
 
   console.log({ res })
 

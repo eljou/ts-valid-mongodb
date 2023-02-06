@@ -39,14 +39,23 @@ export class Monguito {
     const collectionName = schema.className()
     const { validationSchema, options } = schema
 
+    if (schema.options?.autoCreateCollection === false) {
+      const cols = await this.db.listCollections().toArray()
+      if (!cols.some((c) => c.name == collectionName))
+        throw new MonguitoError(
+          'find',
+          new Error(`Collection ${collectionName} was not found and autoCreateCollection is false`),
+        )
+    }
+
+    const collection = this.db.collection(collectionName)
+    if (schema.options?.indexes) await collection.createIndexes(schema.options?.indexes)
+
     const withVersion = options?.versionKey ?? true
 
     const docSchema: Schema<Doc<P>> = validationSchema.and(
       z.object({ _id: z.instanceof(ObjectId), __v: z.number().optional() }),
     )
-
-    const collection = this.db.collection(collectionName)
-    if (schema.options?.indexes) await collection.createIndexes(schema.options?.indexes)
 
     return {
       count: (filters, opts) => mapError('find', () => collection.countDocuments(filters, opts)),

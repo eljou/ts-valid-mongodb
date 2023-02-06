@@ -5,6 +5,7 @@ import { Schema } from 'zod'
 interface SchemaOptions<T> {
   versionKey?: boolean
   collection?: string
+  autoCreateCollection?: boolean
   indexes?: (IndexDescription & {
     key: Partial<{ [k in keyof T]: IndexDirection }>
   })[]

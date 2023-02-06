@@ -24,25 +24,17 @@ async function run() {
   const mongito = new Monguito('mongodb://127.0.0.1:27017', 'test')
   await mongito.connect()
 
-  const reservationsModel = await mongito.getModel(
-    new Reservation(reservationSchema, {
-      indexes: [
-        { key: { onBehalf: 1 }, unique: true },
-        { key: { id: 1 }, unique: true },
-        { key: { access: 1, seats: 1 } },
-      ],
-    }),
-  )
+  const reservationsModel = await mongito.getModel(new Reservation(reservationSchema))
 
-  await reservationsModel.insert({
-    id: randomUUID(),
-    onBehalf: 'Jhon',
-    accepted: true,
-    access: 'NORMAL',
-    seats: 6,
-    groupNames: ['Pedrito', 'Juanito'],
-    createdAt: new Date(),
-  })
+  // await reservationsModel.insert({
+  //   id: randomUUID(),
+  //   onBehalf: 'Jhon',
+  //   accepted: true,
+  //   access: 'NORMAL',
+  //   seats: 6,
+  //   groupNames: ['Pedrito', 'Juanito'],
+  //   createdAt: new Date(),
+  // })
 
   /*   const res = await dogsModel.advancedFind<{ name: string }>(
     {

@@ -1,10 +1,7 @@
 import { z, Schema } from 'zod'
-import { Db, MongoClient, ObjectId, Document, Filter, UpdateFilter } from 'mongodb'
+import { Db, MongoClient, ObjectId, Document, Filter, UpdateFilter, MongoClientOptions } from 'mongodb'
 import { Doc, Model } from './model'
-
-export interface ModelOptions {
-  versionKey?: boolean
-}
+import { MonguitoSchema } from './schema'
 
 type DbOperations = 'find' | 'update' | 'delete' | 'insert'
 
@@ -22,8 +19,8 @@ export class Monguito {
   private client: MongoClient
   private db: Db
 
-  constructor(url: string, dbName: string) {
-    this.client = new MongoClient(url)
+  constructor(url: string, dbName: string, options?: MongoClientOptions) {
+    this.client = new MongoClient(url, options)
     this.db = this.client.db(dbName)
   }
 
@@ -31,7 +28,7 @@ export class Monguito {
     return this.client.connect()
   }
 
-  model<P extends Document>(collectionName: string, validationSchema: Schema<P>, options?: ModelOptions): Model<P> {
+  async getModel<P extends Document>(schema: MonguitoSchema<P>): Promise<Model<P>> {
     const mapError = <R>(operation: DbOperations, cb: () => R): R => {
       try {
         return cb()
@@ -39,13 +36,17 @@ export class Monguito {
         throw new MonguitoError(operation, error instanceof Error ? error : new Error(`${error}`))
       }
     }
+    const collectionName = schema.className()
+    const { validationSchema, options } = schema
 
-    const collection = this.db.collection(collectionName)
     const withVersion = options?.versionKey ?? true
 
     const docSchema: Schema<Doc<P>> = validationSchema.and(
       z.object({ _id: z.instanceof(ObjectId), __v: z.number().optional() }),
     )
+
+    const collection = this.db.collection(collectionName)
+    if (schema.options?.indexes) await collection.createIndexes(schema.options?.indexes)
 
     return {
       count: (filters, opts) => mapError('find', () => collection.countDocuments(filters, opts)),

@@ -1,7 +1,6 @@
 import { randomUUID } from 'crypto'
 import { z } from 'zod'
-import { mongostrict } from '../lib/mongostrict'
-import { Schema } from '../lib/schema'
+import { mongostrict, Schema } from '../index'
 
 // TODO: autoIndex
 
@@ -17,8 +16,9 @@ const reservationSchema = z.object({
 
 console.log('app')
 async function run() {
-  console.log('connected')
   await mongostrict.connect('mongodb://127.0.0.1:27017', 'test')
+  console.log('connected')
+
   const reservationsModel = mongostrict.createModel(new Schema('reservation', reservationSchema))
 
   await reservationsModel.insert({
@@ -30,6 +30,9 @@ async function run() {
     groupNames: ['Pedrito', 'Juanito'],
     createdAt: new Date(),
   })
+
+  const found = await reservationsModel.find({ onBehalf: 'Jhon' })
+  console.log(found)
 
   await mongostrict.disconnect()
   console.log('finished')

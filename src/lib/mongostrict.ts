@@ -1,21 +1,10 @@
-import { z, Schema } from 'zod'
+import { z, Schema as ZodSchema } from 'zod'
 import { Db, MongoClient, ObjectId, Document, Filter, UpdateFilter, MongoClientOptions, Collection } from 'mongodb'
 import { Doc, Model } from './model'
-import { MonguitoSchema } from './schema'
+import { Schema } from './schema'
+import { DbOperations, MongoStrictError } from './errors'
 
-type DbOperations = 'find' | 'update' | 'delete' | 'insert'
-
-class MonguitoError extends Error {
-  constructor(public operation: DbOperations, public nativeError?: Error) {
-    super(
-      `Failed at running operation: ${operation}. ${
-        nativeError ? `with error: ${nativeError.name}: ${nativeError.message}` : ''
-      }`,
-    )
-  }
-}
-
-class Monguito {
+class MongoStrict {
   private client: MongoClient | null = null
   private db: Db | null = null
 
@@ -25,22 +14,22 @@ class Monguito {
     return this.client.connect()
   }
 
-  withClientConnect(client: MongoClient): Promise<MongoClient> {
+  withClientConnect(client: MongoClient, dbName: string): Promise<MongoClient> {
     if (this.client) throw new Error('client has al ready been initialized')
     this.client = client
-    this.db = this.client.db(client.db.name)
+    this.db = this.client.db(dbName)
     return this.client.connect()
   }
 
-  createModel<P extends Document>(schema: MonguitoSchema<P>): Model<P> {
+  createModel<P extends Document>(schema: Schema<P>): Model<P> {
     let indexesChecked = false
     let collectionsChecked = false
 
-    const collectionName = schema.className()
+    const collectionName = schema.getCollectionName()
     const { validationSchema, options } = schema
     const withVersion = options?.versionKey ?? true
 
-    const docSchema: Schema<Doc<P>> = validationSchema.and(
+    const docSchema: ZodSchema<Doc<P>> = validationSchema.and(
       z.object({ _id: z.instanceof(ObjectId), __v: z.number().optional() }),
     )
 
@@ -55,8 +44,8 @@ class Monguito {
           const cols = await db.listCollections().toArray()
           collectionsChecked = true
           if (!cols.some((c) => c.name == collectionName))
-            throw new MonguitoError(
-              'find',
+            throw new MongoStrictError(
+              'collection',
               new Error(`Collection ${collectionName} was not found and autoCreateCollection is false`),
             )
         }
@@ -68,7 +57,7 @@ class Monguito {
 
         return cb(collectionModel)
       } catch (error) {
-        throw new MonguitoError(operation, error instanceof Error ? error : new Error(`${error}`))
+        throw new MongoStrictError(operation, error instanceof Error ? error : new Error(`${error}`))
       }
     }
 
@@ -182,5 +171,5 @@ class Monguito {
   }
 }
 
-export { MonguitoSchema, Model, Doc }
-export const monguito = new Monguito()
+export { Schema, Model, Doc }
+export const mongostrict = new MongoStrict()

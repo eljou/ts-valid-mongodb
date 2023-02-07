@@ -1,6 +1,6 @@
+import { Schema as ZodSchema } from 'zod'
 import { pluralize } from 'inflection'
 import { IndexDescription, IndexDirection } from 'mongodb'
-import { Schema } from 'zod'
 
 interface SchemaOptions<T> {
   versionKey?: boolean
@@ -11,11 +11,11 @@ interface SchemaOptions<T> {
   })[]
 }
 
-export abstract class MonguitoSchema<P> {
-  constructor(public validationSchema: Schema<P>, public options?: SchemaOptions<P>) {}
+export class Schema<P> {
+  constructor(private name: string, public validationSchema: ZodSchema<P>, public options?: SchemaOptions<P>) {}
 
-  className(): string {
-    const dirtyName = this.options?.collection ?? this.constructor.name
+  getCollectionName(): string {
+    const dirtyName = this.options?.collection ?? this.name
     const res = dirtyName
       .match(/[A-Z]{2,}(?=[A-Z][a-z]+[0-9]*|\b)|[A-Z]?[a-z]+[0-9]*|[A-Z]|[0-9]+/g)
       ?.map((x) => x.toLowerCase())

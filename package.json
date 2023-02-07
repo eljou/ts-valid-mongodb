@@ -11,7 +11,7 @@
     "start:build": "node -r dotenv/config build/index.js",
     "build": "npx tsc -p .",
     "lint": "eslint . --ext .ts",
-    "test": "jest --detectOpenHandles --runInBand --forceExit",
+    "test": "jest --detectOpenHandles --runInBand --forceExit --passWithNoTests",
     "test:watch": "npm test -- --watchAll --runInBand",
     "coverage": "npm test -- --coverage --no-cache --detectOpenHandles",
     "coverage:watch": "npm run coverage -- --forceExit --watch",

@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 import { z } from 'zod'
-import { mongostrict, Schema } from '../index'
+import tsValidMongoDb, { Schema } from '../index'
 
 // TODO: autoIndex
 
@@ -16,10 +16,10 @@ const reservationSchema = z.object({
 
 console.log('app')
 async function run() {
-  await mongostrict.connect('mongodb://127.0.0.1:27017', 'test')
+  await tsValidMongoDb.connect('mongodb://127.0.0.1:27017', 'test')
   console.log('connected')
 
-  const reservationsModel = mongostrict.createModel(new Schema('reservation', reservationSchema))
+  const reservationsModel = tsValidMongoDb.createModel(new Schema('reservation', reservationSchema))
 
   await reservationsModel.insert({
     id: randomUUID(),
@@ -34,7 +34,7 @@ async function run() {
   const found = await reservationsModel.find({ onBehalf: 'Jhon' })
   console.log(found)
 
-  await mongostrict.disconnect()
+  await tsValidMongoDb.disconnect()
   console.log('finished')
 }
 

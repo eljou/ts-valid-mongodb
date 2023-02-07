@@ -2,9 +2,9 @@ import { z, Schema as ZodSchema } from 'zod'
 import { Db, MongoClient, ObjectId, Document, Filter, UpdateFilter, MongoClientOptions, Collection } from 'mongodb'
 import { Doc, Model } from './model'
 import { Schema } from './schema'
-import { DbOperations, MongoStrictError } from './errors'
+import { DbOperations, DbFailure } from './errors'
 
-class MongoStrict {
+class TsValidMongoDb {
   private client: MongoClient | null = null
   private db: Db | null = null
 
@@ -44,7 +44,7 @@ class MongoStrict {
           const cols = await db.listCollections().toArray()
           collectionsChecked = true
           if (!cols.some((c) => c.name == collectionName))
-            throw new MongoStrictError(
+            throw new DbFailure(
               'collection',
               new Error(`Collection ${collectionName} was not found and autoCreateCollection is false`),
             )
@@ -57,7 +57,7 @@ class MongoStrict {
 
         return cb(collectionModel)
       } catch (error) {
-        throw new MongoStrictError(operation, error instanceof Error ? error : new Error(`${error}`))
+        throw new DbFailure(operation, error instanceof Error ? error : new Error(`${error}`))
       }
     }
 
@@ -172,4 +172,4 @@ class MongoStrict {
 }
 
 export { Schema, Model, Doc }
-export const mongostrict = new MongoStrict()
+export default new TsValidMongoDb()

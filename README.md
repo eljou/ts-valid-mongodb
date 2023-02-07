@@ -1,4 +1,4 @@
-# Mongostrict
+# ts-valid-mongodb
 
 Thin layer over [mongodb](https://www.npmjs.com/package/mongodb) native driver to support strongly typed models leveraging the power of [zod](https://www.npmjs.com/package/zod) schema library
 
@@ -9,7 +9,7 @@ Thin layer over [mongodb](https://www.npmjs.com/package/mongodb) native driver t
 **From npm**
 
 ```sh
-npm install mongostrict
+npm install ts-valid-mongodb
 ```
 
 ### Requirements
@@ -37,7 +37,7 @@ npm install mongostrict
 ```ts
 import { z } from 'zod'
 import { randomUUID } from 'crypto'
-import { mongostrict, Schema } from 'mongostrict'
+import tsValidMongoDb, { Schema } from 'ts-valid-mongodb'
 
 const reservationSchema = z.object({
   id: z.string().uuid(),
@@ -50,8 +50,8 @@ const reservationSchema = z.object({
 })
 
 async function run() {
-  await mongostrict.connect('mongodb://127.0.0.1:27017', 'test')
-  const reservationsModel = mongostrict.createModel(new Schema('reservation', reservationSchema))
+  await tsValidMongoDb.connect('mongodb://127.0.0.1:27017', 'test')
+  const reservationsModel = tsValidMongoDb.createModel(new Schema('reservation', reservationSchema))
 
   await reservationsModel.insert({
     id: randomUUID(),
@@ -66,7 +66,7 @@ async function run() {
   const found = await reservationsModel.find({ onBehalf: 'Jhon' })
   console.log(found)
 
-  await mongostrict.disconnect()
+  await tsValidMongoDb.disconnect()
 }
 
 run().catch(console.error)
@@ -83,7 +83,7 @@ A common problem when using Mongoose with TypeScript is that you have to define 
 Other alternatives as [typegoose](https://www.npmjs.com/package/@typegoose/typegoose)
 or [type-mongodb](https://www.npmjs.com/package/type-mongodb) make heavy use of @decorators in order to achieve the same goal, but has complex workflows, known issue, or bad support.
 
-Because of these drawbacks of mongoose and other alternatives **Mongostrict** is born.
+Because of these drawbacks of mongoose and other alternatives **ts-valid-mongo-db** is born.
 
 ## Versioning
 

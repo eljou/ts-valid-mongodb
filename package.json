@@ -1,5 +1,5 @@
 {
-  "name": "mongostrict",
+  "name": "ts-valid-mongodb",
   "version": "0.0.1",
   "description": "Simple starter for typescript projects",
   "main": "./build/index.js",
@@ -23,12 +23,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/eljou/mongostrict.git"
+    "url": "git+https://github.com/eljou/ts-valid-mongodb.git"
   },
   "bugs": {
-    "url": "https://github.com/eljou/mongostrict/issues"
+    "url": "https://github.com/eljou/ts-valid-mongodb/issues"
   },
-  "homepage": "https://github.com/eljou/mongostrict#readme",
+  "homepage": "https://github.com/eljou/ts-valid-mongodb#readme",
   "keywords": [
     "typescript",
     "mongodb",

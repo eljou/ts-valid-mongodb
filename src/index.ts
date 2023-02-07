@@ -1,1 +1,3 @@
-export { mongostrict, Doc, Schema, Model } from './lib/mongostrict'
+import tsValidMongoDb, { Doc, Schema, Model } from './lib'
+export default tsValidMongoDb
+export { Doc, Schema, Model }

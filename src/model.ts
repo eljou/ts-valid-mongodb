@@ -14,7 +14,7 @@ import {
 } from 'mongodb'
 import { Schema } from 'zod'
 
-export type Doc<T> = T & { _id: ObjectId; __v?: number }
+export type Doc<T> = T & { _id: ObjectId; __v?: number | undefined }
 
 export interface Model<P extends Document> {
   count(filters?: Filter<P>, options?: FindOptions<P>): Promise<number>

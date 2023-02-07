@@ -1,9 +1,7 @@
-import { randomUUID } from 'crypto'
 import { z } from 'zod'
-import { Monguito } from './mongito'
+import { monguito } from './mongito'
 import { MonguitoSchema } from './schema'
 
-// TODO: autoCreate collection
 // TODO: autoIndex
 
 const reservationSchema = z.object({
@@ -21,10 +19,8 @@ class Reservation extends MonguitoSchema<z.infer<typeof reservationSchema>> {}
 console.log('app')
 async function run() {
   console.log('connected')
-  const mongito = new Monguito('mongodb://127.0.0.1:27017', 'test')
-  await mongito.connect()
-
-  const reservationsModel = await mongito.getModel(new Reservation(reservationSchema))
+  await monguito.connect('mongodb://127.0.0.1:27017', 'test')
+  const reservationsModel = monguito.createModel(new Reservation(reservationSchema))
 
   // await reservationsModel.insert({
   //   id: randomUUID(),
@@ -93,7 +89,7 @@ async function run() {
   // const dleted = await dogsModel.deleteById('63dd195bcb85727547c55928')
   // console.log({ dleted })
 
-  await mongito.disconnect()
+  await monguito.disconnect()
   console.log('finished')
 }
 

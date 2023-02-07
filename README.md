@@ -19,7 +19,7 @@ npm install ts-valid-mongodb
 - TypeScript 4.5+!
 - You must enable `strict` mode in your `tsconfig.json`. This is a best practice for all TypeScript projects.
 
-```json
+```js
 // tsconfig.json
 {
   // ...

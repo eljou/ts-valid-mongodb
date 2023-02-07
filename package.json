@@ -2,24 +2,44 @@
   "name": "mongostrict",
   "version": "0.0.1",
   "description": "Simple starter for typescript projects",
-  "main": "build/index.js",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "files": [
+    "build/**/*"
+  ],
   "scripts": {
     "start": "node -r dotenv/config build/index.js",
     "prestart": "npm run build",
     "start:dev": "nodemon -r dotenv/config --exec ts-node src/index.ts",
     "start:dev:n18": "node --watch -r ts-node/register src/index.ts",
     "start:build": "node -r dotenv/config build/index.js",
-    "build": "npx tsc -p .",
-    "lint": "eslint . --ext .ts",
+    "build": "rimraf ./build && tsc --project tsconfig.build.json && cp package*.json ./build",
+    "lint": "eslint '*/**/*.{js,ts,tsx}' --quiet --fix",
     "test": "jest --detectOpenHandles --runInBand --forceExit --passWithNoTests",
     "test:watch": "npm test -- --watchAll --runInBand",
     "coverage": "npm test -- --coverage --no-cache --detectOpenHandles",
     "coverage:watch": "npm run coverage -- --forceExit --watch",
     "release": "np"
   },
-  "keywords": [],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eljou/mongostrict.git"
+  },
+  "bugs": {
+    "url": "https://github.com/eljou/mongostrict/issues"
+  },
+  "homepage": "https://github.com/eljou/mongostrict#readme",
+  "keywords": [
+    "typescript",
+    "mongodb",
+    "mongoose",
+    "ts",
+    "zod",
+    "schema",
+    "model"
+  ],
   "author": "Ernesto Fuentes Gómez",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "dotenv": "^6.2.0",
     "inflection": "^2.0.1",

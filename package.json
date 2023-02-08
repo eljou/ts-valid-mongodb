@@ -1,24 +1,20 @@
 {
   "name": "ts-valid-mongodb",
   "version": "0.0.3",
-  "description": "Simple starter for typescript projects",
+  "description": "Mongodb native driver wrapper to suppor schema validation with zod",
   "main": "./build/index.js",
   "types": "./build/index.d.ts",
   "files": [
     "build/**/*"
   ],
   "scripts": {
-    "start": "node -r dotenv/config build/index.js",
-    "prestart": "npm run build",
-    "start:dev": "nodemon -r dotenv/config --exec ts-node src/index.ts",
-    "start:dev:n18": "node --watch -r ts-node/register src/index.ts",
-    "start:build": "node -r dotenv/config build/index.js",
-    "build": "rimraf ./build && tsc --project tsconfig.build.json && cp package*.json ./build",
     "lint": "eslint '*/**/*.{js,ts,tsx}' --quiet --fix",
-    "test": "jest --detectOpenHandles --runInBand --forceExit --passWithNoTests",
+    "build": "rimraf ./build && tsc --project tsconfig.build.json && cp package*.json ./build",
+    "test": "jest --detectOpenHandles --runInBand --forceExit",
     "test:watch": "npm test -- --watchAll --runInBand",
     "coverage": "npm test -- --coverage --no-cache --detectOpenHandles",
     "coverage:watch": "npm run coverage -- --forceExit --watch",
+    "prepublishOnly": "npm run build",
     "release": "np"
   },
   "repository": {
@@ -41,7 +37,6 @@
   "author": "Ernesto Fuentes Gómez",
   "license": "MIT",
   "dependencies": {
-    "dotenv": "^6.2.0",
     "inflection": "^2.0.1",
     "mongodb": "^5.0.0",
     "zod": "^3.20.2"
@@ -55,14 +50,9 @@
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-prettier": "^4.2.1",
     "jest": "^29.0.1",
-    "module-alias": "^2.2.2",
-    "nodemon": "^2.0.19",
     "np": "^7.6.3",
     "prettier": "^2.7.1",
     "ts-node": "^10.9.1",
     "typescript": "^4.9.5"
-  },
-  "_moduleAliases": {
-    "@src": "build"
   }
 }

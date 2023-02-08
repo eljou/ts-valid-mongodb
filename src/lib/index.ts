@@ -4,6 +4,8 @@ import { Doc, Model } from './model'
 import { Schema } from './schema'
 import { DbOperations, DbFailure } from './errors'
 
+// TODO: auto index
+
 class TsValidMongoDb {
   private client: MongoClient | null = null
   private db: Db | null = null

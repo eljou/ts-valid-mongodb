@@ -2,8 +2,6 @@ import { randomUUID } from 'crypto'
 import { z } from 'zod'
 import tsValidMongoDb, { Schema } from '../index'
 
-// TODO: autoIndex
-
 const reservationSchema = z.object({
   id: z.string().uuid(),
   onBehalf: z.string(),
@@ -23,7 +21,7 @@ async function run() {
 
   await reservationsModel.insert({
     id: randomUUID(),
-    onBehalf: 'Jhon',
+    onBehalf: 'Karmak',
     accepted: true,
     access: 'NORMAL',
     seats: 6,

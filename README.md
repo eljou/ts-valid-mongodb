@@ -83,7 +83,7 @@ A common problem when using Mongoose with TypeScript is that you have to define 
 Other alternatives as [typegoose](https://www.npmjs.com/package/@typegoose/typegoose)
 or [type-mongodb](https://www.npmjs.com/package/type-mongodb) make heavy use of @decorators in order to achieve the same goal, but has complex workflows, known issue, or bad support.
 
-Because of these drawbacks of mongoose and other alternatives **ts-valid-mongo-db** is born.
+Because of these drawbacks of mongoose and other alternatives **ts-valid-mongodb** is born.
 
 ## Versioning
 

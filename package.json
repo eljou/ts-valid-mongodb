@@ -1,6 +1,6 @@
 {
   "name": "ts-valid-mongodb",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Mongodb native driver wrapper to suppor schema validation with zod",
   "main": "./build/index.js",
   "types": "./build/index.d.ts",

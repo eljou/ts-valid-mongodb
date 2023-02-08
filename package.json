@@ -10,7 +10,7 @@
   "scripts": {
     "lint": "eslint '*/**/*.{js,ts,tsx}' --quiet --fix",
     "build": "rimraf ./build && tsc --project tsconfig.build.json && cp package*.json ./build",
-    "test": "jest --detectOpenHandles --runInBand --forceExit",
+    "test": "jest --detectOpenHandles --runInBand --forceExit --passWithNoTests",
     "test:watch": "npm test -- --watchAll --runInBand",
     "coverage": "npm test -- --coverage --no-cache --detectOpenHandles",
     "coverage:watch": "npm run coverage -- --forceExit --watch",

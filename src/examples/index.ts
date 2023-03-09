@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 import { z } from 'zod'
-import tsValidMongoDb, { Schema } from '../index'
+import TsValidMongoDb, { Schema } from '../index'
 
 const reservationSchema = z.object({
   id: z.string().uuid(),
@@ -14,10 +14,11 @@ const reservationSchema = z.object({
 
 console.log('app')
 async function run() {
-  await tsValidMongoDb.connect('mongodb://127.0.0.1:27017', 'test')
+  const client = TsValidMongoDb.create('mongodb://127.0.0.1:27017', 'test')
+  await client.connect()
   console.log('connected')
 
-  const reservationsModel = tsValidMongoDb.createModel(new Schema('reservation', reservationSchema))
+  const reservationsModel = client.createModel(new Schema('reservation', reservationSchema))
 
   await reservationsModel.insert({
     id: randomUUID(),
@@ -32,7 +33,7 @@ async function run() {
   const found = await reservationsModel.find({ onBehalf: 'Jhon' })
   console.log(found)
 
-  await tsValidMongoDb.disconnect()
+  await client.disconnect()
   console.log('finished')
 }
 

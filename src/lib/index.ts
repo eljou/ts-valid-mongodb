@@ -4,22 +4,28 @@ import { Doc, Model } from './model'
 import { Schema } from './schema'
 import { DbOperations, DbFailure } from './errors'
 
-// TODO: auto index
+export default class TsValidMongoDb {
+  private client: MongoClient
+  private db: Db
 
-class TsValidMongoDb {
-  private client: MongoClient | null = null
-  private db: Db | null = null
-
-  connect(url: string, dbName: string, options?: MongoClientOptions): Promise<MongoClient> {
-    this.client = new MongoClient(url, options)
+  private constructor(urlOrClient: string | MongoClient, dbName: string, options?: MongoClientOptions) {
+    this.client = typeof urlOrClient == 'string' ? new MongoClient(urlOrClient, options) : urlOrClient
     this.db = this.client.db(dbName)
-    return this.client.connect()
   }
 
-  withClientConnect(client: MongoClient, dbName: string): Promise<MongoClient> {
-    if (this.client) throw new Error('client has al ready been initialized')
-    this.client = client
-    this.db = this.client.db(dbName)
+  static create(url: string, dbName: string, options?: MongoClientOptions): TsValidMongoDb {
+    return new TsValidMongoDb(url, dbName, options)
+  }
+
+  static createWithClient(client: MongoClient, dbName: string): TsValidMongoDb {
+    return new TsValidMongoDb(client, dbName)
+  }
+
+  static createModel<P extends Document>(instance: TsValidMongoDb, schema: Schema<P>): Model<P> {
+    return instance.createModel(schema)
+  }
+
+  connect(): Promise<MongoClient> {
     return this.client.connect()
   }
 
@@ -38,7 +44,6 @@ class TsValidMongoDb {
     let collectionModel: Collection | null = null
     const runSafe = async <R>(operation: DbOperations, cb: (col: Collection) => R): Promise<R> => {
       try {
-        if (this.db == null) throw new Error('Mongodb connection not initialized')
         const db: Db = this.db
         if (!collectionModel) collectionModel = db.collection(collectionName)
 
@@ -174,4 +179,3 @@ class TsValidMongoDb {
 }
 
 export { Schema, Model, Doc }
-export default new TsValidMongoDb()

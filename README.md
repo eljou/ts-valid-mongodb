@@ -37,7 +37,7 @@ npm install ts-valid-mongodb
 ```ts
 import { z } from 'zod'
 import { randomUUID } from 'crypto'
-import tsValidMongoDb, { Schema } from 'ts-valid-mongodb'
+import TsValidMongoDb, { Schema } from 'ts-valid-mongodb'
 
 const reservationSchema = z.object({
   id: z.string().uuid(),
@@ -50,8 +50,9 @@ const reservationSchema = z.object({
 })
 
 async function run() {
-  await tsValidMongoDb.connect('mongodb://127.0.0.1:27017', 'test')
-  const reservationsModel = tsValidMongoDb.createModel(new Schema('reservation', reservationSchema))
+  const client = TsValidMongoDb.create('mongodb://127.0.0.1:27017', 'test')
+  await client.connect()
+  const reservationsModel = client.createModel(new Schema('reservation', reservationSchema))
 
   await reservationsModel.insert({
     id: randomUUID(),
@@ -64,9 +65,9 @@ async function run() {
   })
 
   const found = await reservationsModel.find({ onBehalf: 'Jhon' })
-  console.log(found)
+  console.log({ found })
 
-  await tsValidMongoDb.disconnect()
+  await client.disconnect()
 }
 
 run().catch(console.error)
